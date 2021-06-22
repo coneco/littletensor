@@ -14,9 +14,9 @@ def compute_gradient(graph: Graph, y: Tensor, x: list) -> list:
         原则上要求 y 是一个标量，否则退化为计算 reduce_sum(y) 到 x 的梯度
     """
 
-    assert y in graph.ops
+    assert y.name in graph.tensors
     for tns in x:
-        assert tns in graph.ops, "tensor %s 不在图内" % (tns.name,) 
+        assert tns.name in graph.tensors, "tensor %s 不在图内" % (tns.name,) 
 
     # 所有的 tensor 与其对应的 gradient_tensor 的映射
     all_gradients = {}
@@ -26,11 +26,11 @@ def compute_gradient(graph: Graph, y: Tensor, x: list) -> list:
     inner_gradients = {}
 
     # 添加一个值为 1 的 constant 代表 y 的 梯度
-    all_gradients[y.name] = graph.make_op(Constant, "gradient_%s" % (y.name,), np.ones(y.shape))
+    all_gradients[y.name], = graph.make_op(Constant, "gradient_%s" % (y.name,), np.ones(y.shape))
 
     # 每个 op 带 gradient 出边的数量
     gradient_counts = {}
-    for name, op in graph.ops:
+    for name, op in graph.ops.items():
         gradient_counts[name] = len([edge for edge in op.out_edges if edge.gradient])
     
     # 强设 y 为初始遍历节点
@@ -55,11 +55,13 @@ def compute_gradient(graph: Graph, y: Tensor, x: list) -> list:
             gradient_counts[edge.source.name] -= 1
             if gradient_counts[edge.source.name] == 0:
                 for tns in edge.source.outputs:
+                    print(inner_gradients)
                     if tns.name not in inner_gradients or len(inner_gradients[tns.name]) == 0:
                         all_gradients[tns.name] = graph.make_op(Constant, "gradient_%s" % (tns.name,), np.zeros(tns.shape))
                     elif len(inner_gradients[tns.name]) == 1:
                         all_gradients[tns.name] = inner_gradients[tns.name][0]
-                    all_gradients[tns.name] = graph.make_op(Sum, "gradient_%s" % (tns.name,), all_gradients[tns.name])
+                    else:
+                        all_gradients[tns.name] = graph.make_op(Sum, "gradient_%s" % (tns.name,), inner_gradients[tns.name])
                 travel.append(edge.source)
     
     return [all_gradients[tns.name] for tns in x]

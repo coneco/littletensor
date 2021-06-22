@@ -22,7 +22,7 @@ class Sum(Op):
 
 def sum_gradient(graph: Graph, op: Op, output_gradients: list):
     assert isinstancelist(output_gradients, Tensor)
-    assert len(output_gradients) == len(op.inputs)
+    assert len(output_gradients) == len(op.outputs)
 
     return [output_gradients[0]] * len(op.inputs)
 

@@ -12,11 +12,8 @@ Variable (待测试)
 Placeholder (待测试)
 Sum
 AssignAdd (待测试)
-compute_gradient (待测试)
+compute_gradient
 ```
-
-未来可能会有：分布式计算
-
 
 ## Requirements
 
@@ -36,6 +33,13 @@ b, = g.make_tensor(lt.Constant, "b", np.ones([2,2]) * 2)
 
 c, = g.make_tensor(lt.Sum, "c", [a, b])
 
+grad_a, = lt.compute_gradient(g, c, [a])
+
 sess = lt.Session(g)
-print(sess.run([c]))
+print(sess.run([grad_a]))
 ```
+
+## TODO
+
+1. 扩充 Op 库
+2. 分布式计算
