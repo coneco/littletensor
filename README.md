@@ -8,10 +8,10 @@
 
 ```
 Constant
-Variable (待测试)
-Placeholder (待测试)
+Variable
+Placeholder
 Sum
-AssignAdd (待测试)
+AssignAdd
 compute_gradient
 ```
 

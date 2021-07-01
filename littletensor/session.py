@@ -18,6 +18,29 @@ class Session(object):
         self.graph.initialize_all_variables(self.resources)
 
     def run(self, outputs: list, feed_dict: dict = {}) -> list:
+        return self.run_v2(outputs, feed_dict)
+
+    def run_v2(self, outputs: list, feed_dict: dict = {}) -> list:
+        if not self.graph.finalized:
+            self.sub_graphs = {}
+            self.graph.finalize()
+
+        graph = self.graph.topo
+        query = tuple(sorted([tns.name for tns in outputs]))
+        if query not in self.sub_graphs:
+            self.sub_graphs[query] = self.graph.prune_for(outputs)
+        graph = self.sub_graphs[query]
+
+        context = {RESOURCES_KEY: self.resources}
+        for tns, value in feed_dict.items():
+            context[tns.name] = value
+
+        for op in graph:
+            op.compute(context)
+
+        return [context[tns.name] for tns in outputs]
+
+    def run_v1(self, outputs: list, feed_dict: dict = {}) -> list:
         
         if not self.graph.finalized:
             self.sub_graphs = {}

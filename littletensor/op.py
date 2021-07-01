@@ -7,7 +7,7 @@ from littletensor.utils import isinstancelist, RESOURCES_KEY
 
 class Op(object):
 
-    def __init__(self, name: str, inputs: list, output_shapes: list):
+    def __init__(self, name: str, inputs: list, output_metainfo: list):
         super().__init__()
         self.id = -1
         self.name = name
@@ -16,7 +16,7 @@ class Op(object):
         self.inputs = [tns for tns in inputs]
 
         # Op 对象初始化时创建输出的 Tensor 对象
-        self.outputs = [Tensor("%s_%d" % (name, idx), shp) for idx, shp in enumerate(output_shapes)]
+        self.outputs = [Tensor("%s_%d" % (name, idx), shp, dtype) for idx, (shp, dtype) in enumerate(output_metainfo)]
         # 并将 Tensor 的 op 指针指向 self
         for tns in self.outputs:
             tns.op = self
@@ -47,16 +47,18 @@ OP_TO_GRADIENT = {}
 
 class Placeholder(Op):
 
-    def __init__(self, name: str, shape: list):
-        super().__init__(name, [], [shape])
+    def __init__(self, name: str, shape: list, dtype: type):
+        super().__init__(name, [], [(shape, dtype)])
 
     def compute(self, context: dict):
         assert self.outputs[0].name in context, "placeholder %s not feed." % (self.name, )
+        assert context[self.outputs[0].name].dtype == self.outputs[0].dtype, "placeholder %s feed dtype wrong." % (self.name, )
+        assert list(context[self.outputs[0].name].shape) == self.outputs[0].shape, "placeholder %s feed shape wrong." % (self.name, )
 
 class Constant(Op):
 
     def __init__(self, name: str, value: ndarray):
-        super().__init__(name, [], [list(value.shape)])
+        super().__init__(name, [], [(list(value.shape), value.dtype)])
         self.value = value
     
     def compute(self, context: dict):
@@ -65,7 +67,7 @@ class Constant(Op):
 class Variable(Op):
 
     def __init__(self, name: str, init_value: ndarray):
-        super().__init__(name, [], [list(init_value.shape)])
+        super().__init__(name, [], [(list(init_value.shape), init_value.dtype)])
         self.init_value = init_value
     
     def compute(self, context: dict):
@@ -78,13 +80,17 @@ class Variable(Op):
 class AssignAdd(Op):
 
     def __init__(self, name: str, var: Variable, value: Tensor):
-        assert var.shape == value.shape
-        super().__init__(name, [value], [var.shape])
+        if isinstance(var, Tensor):
+            var = var.op
+        assert isinstance(var, Variable)
+        assert list(var.init_value.shape) == value.shape
+        super().__init__(name, [value], [(var.init_value.shape, var.init_value.dtype)])
         self.var = var
         self.in_edges[0].gradient = False
 
     def compute(self, context: dict):
         assert RESOURCES_KEY in context
         assert isinstance(context[RESOURCES_KEY], dict)
-        assert self.var.name in context[RESOURCES_KEY], "variable %s not initialized." % (self.name, )
+        assert self.var.outputs[0].name in context[RESOURCES_KEY], "variable %s not initialized." % (self.name, )
         context[RESOURCES_KEY][self.var.outputs[0].name] += context[self.inputs[0].name]
+        context[self.outputs[0].name] = context[RESOURCES_KEY][self.var.outputs[0].name]

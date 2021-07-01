@@ -8,14 +8,14 @@ from littletensor.utils import isinstancelist
 
 class Sum(Op):
 
-    def __init__(self, name: str, inputs: list):
+    def __init__(self, name: str, inputs: list, dtype: type=np.float32):
         assert len(inputs) >= 1, "Sum 至少有一个输入"
         for inp in inputs:
             assert inp.shape == inputs[0].shape, "Sum 的输入 shape 必须一致"
-        super().__init__(name, inputs, [inputs[0].shape])
+        super().__init__(name, inputs, [(inputs[0].shape, dtype)])
 
     def compute(self, context: dict):
-        output_matrix = np.zeros(self.outputs[0].shape)
+        output_matrix = np.zeros(self.outputs[0].shape, dtype=self.outputs[0].dtype)
         for tns in self.inputs:
             output_matrix += context[tns.name]
         context[self.outputs[0].name] = output_matrix

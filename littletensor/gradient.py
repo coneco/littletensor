@@ -55,7 +55,6 @@ def compute_gradient(graph: Graph, y: Tensor, x: list) -> list:
             gradient_counts[edge.source.name] -= 1
             if gradient_counts[edge.source.name] == 0:
                 for tns in edge.source.outputs:
-                    print(inner_gradients)
                     if tns.name not in inner_gradients or len(inner_gradients[tns.name]) == 0:
                         all_gradients[tns.name] = graph.make_op(Constant, "gradient_%s" % (tns.name,), np.zeros(tns.shape))
                     elif len(inner_gradients[tns.name]) == 1:
